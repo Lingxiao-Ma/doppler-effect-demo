@@ -10,3 +10,32 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+.playerContainer {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+
+#labelAndInput {
+  width: 360px;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+#buttonGroup {
+  width: 360px;
+  display: flex;
+  justify-content: space-between;
+}
+
+#filePlayButton, #caputureLiveAudioButton {
+  margin-top: 10px;
+  width: 180px;
+}
+.soundWave {
+  width: 800px;
+  height: 100px;
+  margin-top: 10px;
+}

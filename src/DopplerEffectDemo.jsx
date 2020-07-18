@@ -6,14 +6,16 @@ export class DopplerEffectDemo extends React.Component {
     super(props);
     this.state = {
       isPlaying: false,
-      freq: 440,
+      isCapturing: false,
+      freq: 18000,
       duration: 3,
       selectedFile: null,
       downloadUrl: null
     }
-    this.canvasRef = React.createRef();
     this.downloadRef = React.createRef();
-    this.captureCanvasRef = React.createRef();
+    this.oscillatorPlayerCanvasRef = React.createRef();
+    this.filePlayerCanvasRef = React.createRef();
+    this.liveAudioCanvasRef = React.createRef();
   }
 
   handleFreqChange = (e) => {
@@ -57,8 +59,7 @@ export class DopplerEffectDemo extends React.Component {
       isPlaying: true
     })
     player.buildGraph().then(() => player.play());
-    const canvasCtx = this.canvasRef.current.getContext("2d");
-    this.drawWave(player, canvasCtx);
+    this.drawWave(player, this.oscillatorPlayerCanvasRef);
   }
 
   handleFilePlay = () => {
@@ -77,36 +78,38 @@ export class DopplerEffectDemo extends React.Component {
       isPlaying: true
     })    
     player.buildGraph().then(() => player.play());
-    const canvasCtx = this.canvasRef.current.getContext("2d");
-    this.drawWave(player, canvasCtx);
+    this.drawWave(player, this.filePlayerCanvasRef);
   }
 
   captureLiveAudio = () => {
     const player = new LiveAudioAnalyser();
     player.buildGraph();
-    const canvasCtx = this.captureCanvasRef.current.getContext("2d");
-    this.drawWave(player, canvasCtx);    
+    this.drawWave(player, this.liveAudioCanvasRef);
+    this.setState({
+      isCapturing: true
+    })
   }
 
-  drawWave = (player, canvasCtx) => {
+  drawWave = (player, canvasRef) => {
     const analyser = player.getAnalyser();
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
-    this.draw(canvasCtx, analyser, dataArray)();
+    this.draw(canvasRef, analyser, dataArray)();
   }
 
-  draw = (canvasCtx, analyser, dataArray) => () => {
-    requestAnimationFrame(this.draw(canvasCtx, analyser, dataArray));
+  draw = (canvasRef, analyser, dataArray) => () => {
+    const canvasCtx = canvasRef.current.getContext("2d");
+    requestAnimationFrame(this.draw(canvasRef, analyser, dataArray));
     const bufferLength = analyser.frequencyBinCount;
-    const width = this.canvasRef.current.width;
-    const height = this.canvasRef.current.height;
+    const width = canvasRef.current.width;
+    const height = canvasRef.current.height;
 
     analyser.getByteTimeDomainData(dataArray);
 
     canvasCtx.fillStyle = "rgb(200, 200, 200)";
     canvasCtx.fillRect(0, 0, width, height);
 
-    canvasCtx.lineWidth = 2;
+    canvasCtx.lineWidth = 1;
     canvasCtx.strokeStyle = "rgb(0, 0, 0)";
 
     canvasCtx.beginPath();
@@ -131,20 +134,48 @@ export class DopplerEffectDemo extends React.Component {
   }
 
   render() {
-    const { freq, duration, isPlaying, selectedFile, downloadUrl } = this.state;
+    const { freq, duration, isPlaying, isCapturing, selectedFile, downloadUrl } = this.state;
+
     return (
       <div id='container'>
-        <h1>dopplerEffect Demo</h1>
-        <input type = 'text' id = 'waveFreqInput' disabled={isPlaying} value ={freq} onChange={this.handleFreqChange}/>
-        <input type = 'text' id = 'waveDurationInput' disabled={isPlaying}  value ={duration} onChange={this.handleDurationChange}/>
-        <button id = 'playSinWaveButton' disabled={isPlaying}  onClick={this.handlePlay(false)}>Play Sin Wave</button>
-        <button id = 'recordSinWaveButton' disabled={isPlaying}  onClick={this.handlePlay(true)}>Record Sin Wave</button>
-        { downloadUrl && !isPlaying && <a id = 'download' ref= {this.downloadRef} href={downloadUrl} download={`${this.state.freq}-${this.state.duration}-sinwave.wav`}>Download Recorded Sin Wave</a> }
-        <input type='file' accept='audio/*' id='fileInput' onChange={this.handleFileChange}/>
-        <button id = 'recordSinWaveButton' disabled={isPlaying || !selectedFile}  onClick={this.handleFilePlay}>Play Selected Audio</button>
-        <canvas width="640" height="100" ref={this.canvasRef}></canvas> 
-        <button id = 'caputureLiveAudioButton' disabled={isPlaying}  onClick={this.captureLiveAudio}>Caputre Live Audio</button>
-        <canvas width="640" height="100" ref={this.captureCanvasRef}></canvas> 
+        <h1>Doppler Effect Demo</h1>
+        <p>
+          <li>Enable live audio capture.</li>
+          <li>Play a 18k Hz sound wave.</li>
+          <li>Move your hand to microphone and away to see doppler effect.</li>
+        </p>
+
+        <div className='playerContainer'>
+          <h2>Capture live audio</h2>
+          <button id = 'caputureLiveAudioButton' disabled={isCapturing} onClick={this.captureLiveAudio}>Start Capture Live Audio</button>
+          <canvas className='soundWave' ref={this.liveAudioCanvasRef}></canvas>           
+        </div>
+
+        <div className='playerContainer'>
+          <h2>Generate a sound wave with specified frequence</h2>
+          <div id='labelAndInput'>
+            <label>Wave Frequence: </label>
+            <input type = 'text' id = 'waveFreqInput' disabled={isPlaying} value ={freq} onChange={this.handleFreqChange}/>
+          </div>
+
+          <div id='labelAndInput'>
+            <label>Wave Duration(seconds): </label>
+            <input type = 'text' disabled={isPlaying}  value ={duration} onChange={this.handleDurationChange}/>
+          </div>
+          <div id='buttonGroup'>
+            <button disabled={isPlaying}  onClick={this.handlePlay(false)}>Play Sound Wave</button>
+            <button disabled={isPlaying}  onClick={this.handlePlay(true)}>Record Sound Wave</button>
+          </div>
+          { downloadUrl && !isPlaying && <a id = 'download' ref= {this.downloadRef} href={downloadUrl} download={`${this.state.freq}-${this.state.duration}-sinwave.wav`}>Download Recorded Sound Wave</a> }
+          <canvas className='soundWave'ref={this.oscillatorPlayerCanvasRef}></canvas> 
+        </div>
+
+        <div className='playerContainer'>
+          <h2>Play a local audio file (verify recorded sound wave)</h2>
+          <input type='file' accept='audio/*' id='fileInput' onChange={this.handleFileChange}/>
+          <button id = 'filePlayButton' disabled={isPlaying || !selectedFile}  onClick={this.handleFilePlay}>Play Selected Audio</button>
+          <canvas className='soundWave' ref={this.filePlayerCanvasRef}></canvas> 
+        </div>
       </div>
     )
   }
