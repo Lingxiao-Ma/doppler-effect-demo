@@ -196,8 +196,8 @@ export class DopplerEffectDemo extends React.Component {
         <h1>Doppler Effect Demo</h1>
         <p>
           <li>Enable live audio capture.</li>
-          <li>Play a 18k Hz sound wave.</li>
-          <li>Move your hand to microphone and away to see doppler effect.</li>
+          <li>Play a 18kHz sound wave.</li>
+          <li>Move arm gestures toward to the microphone show a postive Doppler shift. move away arm gestures show a negative Doppler shift.</li>
         </p>
 
         <div className='playerContainer'>
