@@ -39,6 +39,17 @@ export class DopplerEffectDemo extends React.Component {
     });
   }
 
+  getFFTSzie = (freq) => {
+    const seconds = 8.0 / freq; // times to fill 4 circle
+    const windowSize = 44100 * seconds;
+    let fftSize = 32;
+    while(fftSize < windowSize) {
+      fftSize *= 2;
+    }
+    console.log({fftSize})
+    return fftSize;
+  }
+
   handlePlay = (isRecord) => () => {
     const {freq, duration} = this.state;
     const options = {freq, duration};
@@ -59,7 +70,7 @@ export class DopplerEffectDemo extends React.Component {
       isPlaying: true
     })
     player.buildGraph().then(() => player.play());
-    this.drawWave(player, this.oscillatorPlayerCanvasRef);
+    this.draw(player, this.oscillatorPlayerCanvasRef);
   }
 
   handleFilePlay = () => {
@@ -78,39 +89,57 @@ export class DopplerEffectDemo extends React.Component {
       isPlaying: true
     })    
     player.buildGraph().then(() => player.play());
-    this.drawWave(player, this.filePlayerCanvasRef);
+    this.draw(player, this.filePlayerCanvasRef);
   }
 
   captureLiveAudio = () => {
     const player = new LiveAudioAnalyser();
     player.buildGraph();
-    this.drawWave(player, this.liveAudioCanvasRef);
+    this.draw(player, this.liveAudioCanvasRef, {getFreq: true, drawBar: true});
     this.setState({
       isCapturing: true
     })
   }
 
-  drawWave = (player, canvasRef) => {
+  draw = (player, canvasRef, options = {}) => {
+    const { getFreq = false, drawBar = false } = options;
+
     const analyser = player.getAnalyser();
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
-    this.draw(canvasRef, analyser, dataArray)();
+    const getData = () => {
+      if(getFreq) {
+        analyser.getByteFrequencyData(dataArray);
+      }
+      else {
+        analyser.getByteTimeDomainData(dataArray);
+      }
+      return dataArray;
+    }
+
+    if(drawBar) {
+      requestAnimationFrame(this.drawFreqBar(canvasRef, getData));
+    }
+    else {
+      requestAnimationFrame(this.drawSinWave(canvasRef, getData));
+    }
   }
 
-  draw = (canvasRef, analyser, dataArray) => () => {
+  drawSinWave = (canvasRef, getData, options) => () => {
+    requestAnimationFrame(this.drawSinWave(canvasRef, getData));
+
     const canvasCtx = canvasRef.current.getContext("2d");
-    requestAnimationFrame(this.draw(canvasRef, analyser, dataArray));
-    const bufferLength = analyser.frequencyBinCount;
     const width = canvasRef.current.width;
     const height = canvasRef.current.height;
 
-    analyser.getByteTimeDomainData(dataArray);
+    const dataArray = getData();
+    const bufferLength = dataArray.length;
 
     canvasCtx.fillStyle = "rgb(200, 200, 200)";
     canvasCtx.fillRect(0, 0, width, height);
 
     canvasCtx.lineWidth = 1;
-    canvasCtx.strokeStyle = "rgb(0, 0, 0)";
+    canvasCtx.strokeStyle = "rgb(0, 0, 200)";
 
     canvasCtx.beginPath();
 
@@ -133,6 +162,32 @@ export class DopplerEffectDemo extends React.Component {
     canvasCtx.stroke();
   }
 
+  drawFreqBar = (canvasRef, getData) => () => {
+    requestAnimationFrame(this.drawFreqBar(canvasRef, getData));
+
+    const canvasCtx = canvasRef.current.getContext("2d");
+    const width = canvasRef.current.width;
+    const height = canvasRef.current.height;
+
+    const dataArray = getData();
+    const bufferLength = dataArray.length;
+
+    canvasCtx.fillStyle = "rgb(200, 200, 200)";
+    canvasCtx.fillRect(0, 0, width, height);
+
+    const barGap = 1;
+    const barWidth = (width / bufferLength) - barGap;
+    let x = 0;
+
+    for(let i = 0; i < bufferLength; i++) {
+      const barHeight = dataArray[i];
+      canvasCtx.fillStyle = `rgb(50,50,${barHeight + 100})`;
+      canvasCtx.fillRect(x,height-barHeight/2,barWidth,barHeight/2);
+  
+      x += barWidth + barGap;
+    }
+  }
+
   render() {
     const { freq, duration, isPlaying, isCapturing, selectedFile, downloadUrl } = this.state;
 
@@ -148,6 +203,7 @@ export class DopplerEffectDemo extends React.Component {
         <div className='playerContainer'>
           <h2>Capture live audio</h2>
           <button id = 'caputureLiveAudioButton' disabled={isCapturing} onClick={this.captureLiveAudio}>Start Capture Live Audio</button>
+          <p>Frequence data bar diagram from microphone</p>
           <canvas className='soundWave' ref={this.liveAudioCanvasRef}></canvas>           
         </div>
 
@@ -167,6 +223,7 @@ export class DopplerEffectDemo extends React.Component {
             <button disabled={isPlaying}  onClick={this.handlePlay(true)}>Record Sound Wave</button>
           </div>
           { downloadUrl && !isPlaying && <a id = 'download' ref= {this.downloadRef} href={downloadUrl} download={`${this.state.freq}-${this.state.duration}-sinwave.wav`}>Download Recorded Sound Wave</a> }
+          <p>Sound Wave Visualization</p>
           <canvas className='soundWave'ref={this.oscillatorPlayerCanvasRef}></canvas> 
         </div>
 
@@ -174,6 +231,7 @@ export class DopplerEffectDemo extends React.Component {
           <h2>Play a local audio file (verify recorded sound wave)</h2>
           <input type='file' accept='audio/*' id='fileInput' onChange={this.handleFileChange}/>
           <button id = 'filePlayButton' disabled={isPlaying || !selectedFile}  onClick={this.handleFilePlay}>Play Selected Audio</button>
+          <p>Sound Wave Visualization</p>
           <canvas className='soundWave' ref={this.filePlayerCanvasRef}></canvas> 
         </div>
       </div>
