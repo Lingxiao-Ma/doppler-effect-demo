@@ -1,3 +1,11 @@
+let AudioContext = window.AudioContext // Default
+    || window.webkitAudioContext // Safari and old versions of Chrome
+    || false;
+
+if (!AudioContext) {
+    // Web Audio API is not supported
+    alert("Sorry, but the Web Audio API is not supported by your browser. Please, consider upgrading to the latest version or downloading Google Chrome or Mozilla Firefox");
+}
 
 export class AudioPlayer {
   constructor(options = {}) {
